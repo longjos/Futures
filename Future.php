@@ -53,7 +53,10 @@ class Future
     function get()
     {           
         if (!$this->completed) {
-            msg_receive($this->mqid, $this->messageType, $msgType, self::SIZE, $this->value, true, 0, $error);
+            if (!(msg_receive($this->mqid, $this->messageType, $msgType, self::SIZE, $this->value, true, 0, $error))) {
+                return false;
+            }
+
             $this->cleanUp();
             $this->completed = true;
         }
@@ -69,8 +72,12 @@ class Future
      */
     function getNoWait()
     {
-        if (!$this->completed) {
-            return false;
+        if (!$this->completed) { 
+            if (!msg_receive($this->mqid, $this->messageType, $msgType, self::SIZE, $this->value, true, MSG_IPC_NOWAIT, $error)) {
+                return false;
+            }
+
+            $this->completed = true;
         }
 
         return $this->value;
