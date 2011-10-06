@@ -16,19 +16,21 @@ class Future
 
     /** unique key for the Futures message queue */
     const MSG_QUEUE_KEY = 0xFAC3;
-
+    
     /**
      * Constructor
      *
      * @var Closure $func
      * @var bool $autoStart
+     * @var resource $collectionId Resource Identifier for collection queue
      */
-    function __construct(Closure $func, $autoStart = true)
+    function __construct(Closure $func, $autoStart = true, $collectionKey = NULL)
     {
         self::$futureCount++;
 
         $this->func = $func;        
         $this->autoStart = $autoStart;
+        $this->collectionKey = $collectionKey;
 
         $this->initMessageQueue();
 
@@ -76,7 +78,7 @@ class Future
             if (!msg_receive($this->mqid, $this->messageType, $msgType, self::SIZE, $this->value, true, MSG_IPC_NOWAIT, $error)) {
                 return false;
             }
-
+            $this->cleanUp();
             $this->completed = true;
         }
 
@@ -100,6 +102,16 @@ class Future
     {
         return $this->completed;
     }
+    
+    /**
+     * Return this futures queue id
+     * 
+     * @return int
+     */
+    function getFutureId()
+    {
+        return $this->messageType;
+    }
 
     /**
      * Fork a child process to compute the value of this Future
@@ -117,10 +129,12 @@ class Future
                 $value = $e;
             }
         
+            // Put the value on the message queue and send a Value Ready message to the collection queue
             if (!msg_send($this->mqid, $this->messageType, $value, true, true, $error)) {
                 $this->cleanUp();
             }
-            
+            // Set VALUE_READY on the collection Queue;
+            msg_send($this->collectionQueueId, FutureCollection::VALUE_READY, $this->messageType, true, true, $error);
             exit(0);
         } 
     }
@@ -134,6 +148,7 @@ class Future
 
         if (self::$futureCount == 0) {
             msg_remove_queue($this->mqid);
+            msg_remove_queue($this->collectionQueueId);
         }
     }
 
@@ -144,7 +159,7 @@ class Future
      */
     private function getMessageType()
     {
-        return floor(microtime(true) * 1000000 + rand(0, 1000));
+        return floor(microtime(true) * 1000000 + rand(2, 1000));
     }
 
     /**
@@ -157,7 +172,15 @@ class Future
         if (!($this->mqid = msg_get_queue(self::MSG_QUEUE_KEY))) {
             throw new Exception('Could not create message queue with key '. self::MSG_QUEUE_KEY);
         }
+        if(isset($this->collectionKey))
+        {
+            if (!($this->collectionQueueId = msg_get_queue($this->collectionKey)))
+            {
+                throw new Exception("Could not create collection message queue with key ". $this->collectionKey);
+            }
+        }
     }
+    
 
     /** @var bool */
     private $completed = false;
@@ -170,6 +193,12 @@ class Future
 
     /** @var resource */
     private $mqid;
+    
+    /** @var resource Collection Queue ID */
+    private $collectionQueueId;
+    
+    /** @var int Collection Queue Key */
+    private $collectionKey;
 
     /** @var int */
     private $pid;
@@ -178,7 +207,7 @@ class Future
     private $func;
 
     /** @var int */
-    private $msgType;
+    private $messageType;
 
     /** @staticvar $int */
     static $futureCount = 0;
