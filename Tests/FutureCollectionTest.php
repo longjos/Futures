@@ -25,7 +25,7 @@
             while($futureCollection->count() > 0)
             {
                 $finishedFuture = $futureCollection->getNextFuture();
-                
+		                
                 if($finishedFuture instanceof Future)
                 {
                     $value = $finishedFuture();

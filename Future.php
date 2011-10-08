@@ -134,7 +134,7 @@ class Future
                 $this->cleanUp();
             }
             // Set VALUE_READY on the collection Queue;
-            if(isset($this->collectionQueueKey))
+            if(isset($this->collectionKey))
             {
                 msg_send($this->collectionQueueId, FutureCollection::VALUE_READY, $this->messageType, true, true, $error);
             }
