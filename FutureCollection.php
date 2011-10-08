@@ -24,7 +24,7 @@ class FutureCollection
     
     private $collectionQueueId;
     
-    private $collectionQueueKey = 0xFAD3;
+    private $collectionQueueKey;
     
     function __construct()
     {
@@ -90,7 +90,7 @@ class FutureCollection
     {
         if(!isset($this->collectionQueueKey))
         {
-            $this->collectionQueueKey = rand(1, 2000);
+            $this->collectionQueueKey = floor(microtime(true) * 100000);
         }
         return $this->collectionQueueKey;
     }
